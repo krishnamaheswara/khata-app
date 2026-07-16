@@ -166,18 +166,33 @@ app.put('/api/entries/:id', async (req, res) => {
   }
 });
 
-app.get('/api/customers', async (_req, res) => {
+app.get('/api/customers', async (req, res) => {
   try {
+    const monthFilter = String(req.query.month || '').trim();
+    const yearFilter = String(req.query.year || '').trim();
+
     const customersResult = await pool.query(`
       SELECT c.*, s.name AS store_name
       FROM customers c
       LEFT JOIN stores s ON s.id = c.store_id
       ORDER BY c.name
     `);
-    const entriesResult = await pool.query('SELECT customer_id, customer_name, customer, type, amount FROM entries');
+    const entriesResult = await pool.query(
+      'SELECT customer_id, customer_name, customer, type, amount, entry_date FROM entries'
+    );
+
+    const filteredEntries = entriesResult.rows.filter((entry) => {
+      const entryDate = entry.entry_date ? String(entry.entry_date) : '';
+      const entryYear = entryDate.slice(0, 4);
+      const entryMonth = entryDate.slice(5, 7);
+      const matchesYear = yearFilter ? entryYear === yearFilter : true;
+      const normalizedMonth = monthFilter ? monthFilter.padStart(2, '0') : '';
+      const matchesMonth = monthFilter ? (monthFilter.includes('-') ? entryDate.slice(0, 7) === monthFilter : entryMonth === normalizedMonth) : true;
+      return matchesYear && matchesMonth;
+    });
 
     const customersWithBalances = customersResult.rows.map((customer) => {
-      const totals = entriesResult.rows.reduce(
+      const totals = filteredEntries.reduce(
         (acc, entry) => {
           const entryCustomerId = entry.customer_id ? Number(entry.customer_id) : null;
           const entryName = (entry.customer_name || entry.customer || '').trim().toLowerCase();

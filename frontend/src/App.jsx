@@ -333,9 +333,15 @@ function Customers({ auth, onLogout }) {
   const [form, setForm] = useState({ name: '', phone: '', address: '', storeId: '' });
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState('');
+  const [filterMonth, setFilterMonth] = useState('');
+  const [filterYear, setFilterYear] = useState('');
 
   const loadCustomers = async () => {
-    const res = await fetch(`${api}/customers`);
+    const params = new URLSearchParams();
+    if (filterMonth) params.set('month', filterMonth);
+    if (filterYear) params.set('year', filterYear);
+
+    const res = await fetch(`${api}/customers${params.toString() ? `?${params.toString()}` : ''}`);
     const data = res.ok ? await res.json().catch(() => []) : [];
     setCustomers(Array.isArray(data) ? data : []);
   };
@@ -349,7 +355,7 @@ function Customers({ auth, onLogout }) {
   useEffect(() => {
     loadCustomers();
     loadStores();
-  }, []);
+  }, [filterMonth, filterYear]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -370,6 +376,16 @@ function Customers({ auth, onLogout }) {
       setMessage('Unable to save customer');
     }
   };
+
+  const monthOptions = [
+    { label: 'All months', value: '' },
+    ...Array.from({ length: 12 }, (_, index) => ({
+      label: new Date(2020, index, 1).toLocaleString('en', { month: 'long' }),
+      value: String(index + 1).padStart(2, '0')
+    }))
+  ];
+
+  const yearOptions = Array.from({ length: 6 }, (_, index) => String(new Date().getFullYear() - index));
 
   return (
     <div style={styles.app}>
@@ -397,6 +413,25 @@ function Customers({ auth, onLogout }) {
         </section>
         <section style={styles.card}>
           <h3 style={{ marginTop: 0 }}>Customer balances</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 12 }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: 6, fontSize: 13, color: '#475569' }}>Month</label>
+              <select style={styles.input} value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}>
+                {monthOptions.map((option) => (
+                  <option key={option.value || 'all'} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: 6, fontSize: 13, color: '#475569' }}>Year</label>
+              <select style={styles.input} value={filterYear} onChange={(e) => setFilterYear(e.target.value)}>
+                <option value="">All years</option>
+                {yearOptions.map((year) => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
+          </div>
           <table style={styles.table}>
             <thead><tr><th style={styles.th}>Name</th><th style={styles.th}>Store</th><th style={styles.th}>Phone</th><th style={styles.th}>Credit</th><th style={styles.th}>Debt</th><th style={styles.th}>Paid</th><th style={styles.th}>Balance</th><th style={styles.th}>Action</th></tr></thead>
             <tbody>
